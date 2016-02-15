@@ -2,18 +2,17 @@ package example;
 
 import org.junit.Rule;
 import org.junit.Test;
-
 import org.neo4j.driver.v1.Driver;
 import org.neo4j.driver.v1.GraphDatabase;
-import org.neo4j.driver.v1.ResultCursor;
 import org.neo4j.driver.v1.Session;
+import org.neo4j.graphdb.Result;
 import org.neo4j.harness.junit.Neo4jRule;
+import org.neo4j.helpers.collection.MapUtil;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertThat;
 import static org.neo4j.bolt.BoltKernelExtension.Settings.connector;
 import static org.neo4j.bolt.BoltKernelExtension.Settings.enabled;
-import static org.neo4j.driver.v1.Values.parameters;
 
 public class LegacyFullTextIndexTest
 {
@@ -39,16 +38,15 @@ public class LegacyFullTextIndexTest
             Session session = driver.session();
 
             // And given I have a node in the database
-            long nodeId = session.run( "CREATE (p:User {name:'Brookreson'}) RETURN id(p)" )
-                    .single()
-                    .get( 0 ).asLong();
+            long nodeId = (long) neo4j.getGraphDatabaseService().execute("CREATE (p:User {name:'Brookreson'}) RETURN id(p)")
+                    .next().get("id(p)");
 
             // When I use the index procedure to index a node
-            session.run( "CALL example.index({id}, ['name'])", parameters( "id", nodeId ) );
+            neo4j.getGraphDatabaseService().execute( "CALL example.index({id}, ['name'])", MapUtil.map("id", nodeId ) );
 
             // Then I can search for that node with lucene query syntax
-            ResultCursor result = session.run( "CALL example.search('User', 'name:Brook*')" );
-            assertThat( result.single().get( "nodeId" ).asLong(), equalTo( nodeId ) );
+            Result result = neo4j.getGraphDatabaseService().execute( "CALL example.search('User', 'name:Brook*')" );
+            assertThat( (long)result.next().get( "nodeId" ), equalTo( nodeId ) );
         }
     }
 }
